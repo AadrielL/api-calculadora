@@ -5,6 +5,7 @@ import com.eletricista.calcservice.repository.OrcamentoRepository;
 import com.eletricista.calcservice.config.TenantContext;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/v1/historico")
@@ -22,5 +23,12 @@ public class HistoricoController {
         String tenantId = TenantContext.getCurrentTenant();
         // Assume-se que o repository tem o método findByTenantIdOrderByDataCriacaoDesc
         return repository.findByTenantIdOrderByDataCriacaoDesc(tenantId);
+    }
+    @PatchMapping("/{id}/status")
+    public void alterarStatus(@PathVariable String id, @RequestParam String novoStatus) {
+        // Troque UUID.randomUUID() por UUID.fromString(id)
+        Orcamento orc = repository.findById(UUID.fromString(id)).orElseThrow();
+        orc.setStatus(com.eletricista.calcservice.model.StatusOrcamento.valueOf(novoStatus.toUpperCase()));
+        repository.save(orc);
     }
 }

@@ -5,6 +5,7 @@ import com.eletricista.calcservice.dto.*;
 import com.eletricista.calcservice.model.*;
 import com.eletricista.calcservice.service.*;
 import com.eletricista.calcservice.repository.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,17 +18,11 @@ import java.util.UUID;
 @CrossOrigin(origins = "http://localhost:4200")
 public class OrcamentoController {
 
-    @Autowired
-    private CalculadoraPrecoService precoService;
-
-    @Autowired
-    private MaterialService materialService;
-
-    @Autowired
-    private ConfigRepository configRepo;
-
-    @Autowired
-    private OrcamentoRepository orcamentoRepo;
+    @Autowired private CalculadoraPrecoService precoService;
+    @Autowired private MaterialService materialService;
+    @Autowired private ConfigRepository configRepo;
+    @Autowired private OrcamentoRepository orcamentoRepo;
+    @Autowired private ObjectMapper objectMapper;
 
     @PostMapping("/gerar-quiz")
     public OrcamentoResponse gerar(@RequestBody QuizRequest quiz,
@@ -44,13 +39,19 @@ public class OrcamentoController {
         orc.setTenantId(tenantId);
         orc.setStatus(StatusOrcamento.PENDENTE_ADMIN);
 
+        try {
+            orc.setDadosTecnicosSnapshot(objectMapper.writeValueAsString(quiz));
+        } catch (Exception e) {
+            orc.setDadosTecnicosSnapshot("{}");
+        }
+
         orc = orcamentoRepo.save(orc);
 
         List<String> listaTecnica = materialService.gerarListaMateriais(quiz);
         String fases = materialService.sugerirEquilibrioFases();
 
         if ("VISITANTE".equalsIgnoreCase(role)) {
-            listaTecnica = Collections.singletonList("Disponível apenas na versão completa para o profissional.");
+            listaTecnica = Collections.singletonList("Disponível apenas para o profissional.");
             fases = "Protegido por direitos técnicos.";
         }
 
@@ -64,12 +65,13 @@ public class OrcamentoController {
         );
     }
 
-    // Endpoint para o Eletricista recuperar os dados do quiz para o levantamento
     @GetMapping("/{id}")
     public Orcamento buscarPorId(@PathVariable UUID id) {
+        // Pega o Tenant que o Interceptor já validou
         String tenantId = TenantContext.getCurrentTenant();
+
         return orcamentoRepo.findById(id)
-                .filter(o -> o.getTenantId().equals(tenantId))
-                .orElseThrow(() -> new RuntimeException("Orçamento não encontrado ou acesso negado"));
+                .filter(o -> o.getTenantId().equalsIgnoreCase(tenantId))
+                .orElseThrow(() -> new RuntimeException("Orçamento não encontrado para o usuário: " + tenantId));
     }
 }

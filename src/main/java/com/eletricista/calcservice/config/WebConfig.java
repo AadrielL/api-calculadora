@@ -12,15 +12,16 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(tenantInterceptor);
+        // Garante que o interceptor rode em todos os endpoints
+        registry.addInterceptor(tenantInterceptor).addPathPatterns("/**");
     }
 
-    // ADICIONE ESTE MÉTODO PARA LIBERAR O ANGULAR
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOrigins("http://localhost:4200") // URL do seu Front-end
+                .allowedOrigins("http://localhost:4200")
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
-                .allowedHeaders("*");
+                .allowedHeaders("*")
+                .exposedHeaders("X-Tenant-ID"); // Importante para o frontend ler o ID se precisar
     }
 }
