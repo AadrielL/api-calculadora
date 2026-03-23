@@ -1,11 +1,15 @@
 package com.eletricista.calcservice.controller;
 
-import com.eletricista.calcservice.config.TenantContext;
-import com.eletricista.calcservice.model.*;
-import com.eletricista.calcservice.repository.*;
+import com.eletricista.calcservice.infra.security.tenant.TenantContext;
+import com.eletricista.calcservice.dto.ConfigDTO;
+import com.eletricista.calcservice.model.Configuracao;
+import com.eletricista.calcservice.model.ServicoCustomizado;
+import com.eletricista.calcservice.repository.ConfigRepository;
+import com.eletricista.calcservice.repository.ServicoCustomizadoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 
 @RestController
@@ -13,62 +17,98 @@ import java.util.List;
 @CrossOrigin(origins = "http://localhost:4200")
 public class AdminConfigController {
 
-    @Autowired private ConfigRepository configRepo;
-    @Autowired private ServicoCustomizadoRepository servicoRepo;
+    @Autowired
+    private ConfigRepository configRepo;
 
-    // 1. Atualiza ou Cria as configurações de preços base
-    @PutMapping("/config")
-    public ResponseEntity<Configuracao> atualizarConfig(@RequestBody Configuracao novaConfig) {
+    @Autowired
+    private ServicoCustomizadoRepository servicoRepo;
+
+    /**
+     * 1. BUSCAR CONFIGURAÇÃO (GET)
+     * Converte a Entity (Banco) para DTO (Angular)
+     */
+    @GetMapping("/config")
+    public ResponseEntity<ConfigDTO> getConfig() {
         String tenantId = TenantContext.getCurrentTenant();
 
-        // Busca se já existe uma config para este eletricista, se não, cria uma nova
-        Configuracao configExistente = configRepo.findById(tenantId).orElse(new Configuracao());
+        Configuracao config = configRepo.findById(tenantId)
+                .orElse(new Configuracao()); // Retorna padrão se não existir no banco
 
-        // Atualiza apenas os campos necessários (Exemplos baseado no seu Service)
-        configExistente.setTenantId(tenantId);
-        configExistente.setValorM2ComInfra(novaConfig.getValorM2ComInfra());
-        configExistente.setValorM2SemInfra(novaConfig.getValorM2SemInfra());
-        configExistente.setPrecoInstalacaoChuveiro(novaConfig.getPrecoInstalacaoChuveiro());
-        configExistente.setPrecoInstalacaoAr(novaConfig.getPrecoInstalacaoAr());
-        configExistente.setValorPontoExtra(novaConfig.getValorPontoExtra());
-        // Adicione aqui os demais campos (diária, gasolina, fatores de luxo...)
+        // Mapeamento manual: Entity -> DTO
+        ConfigDTO dto = new ConfigDTO();
+        dto.setValorM2ComInfra(config.getValorM2ComInfra());
+        dto.setValorM2SemInfra(config.getValorM2SemInfra());
 
-        return ResponseEntity.ok(configRepo.save(configExistente));
+        // Aqui resolve o problema de sumir no F5:
+        dto.setPrecoMotor(config.getPrecoMotorPortao());
+        dto.setPrecoCamera(config.getPrecoCamera());
+        dto.setPrecoCerca(config.getPrecoCercaMetro());
+
+        dto.setValorDiaria(config.getValorKmRodado());
+        dto.setValorPontoExtra(config.getValorPontoExtra());
+        dto.setAreaBase(config.getAreaBase());
+        dto.setPontosBase(config.getPontosBase());
+
+        return ResponseEntity.ok(dto);
     }
 
-    // 2. Adiciona um novo serviço customizado (Max 10)
-    @PostMapping("/servicos-extras")
-    public ResponseEntity<?> adicionarServico(@RequestBody ServicoCustomizado servico) {
+    /**
+     * 2. SALVAR/ATUALIZAR CONFIGURAÇÃO (PUT)
+     * Converte o DTO (Angular) para Entity (Banco)
+     */
+    @PutMapping("/config")
+    public ResponseEntity<ConfigDTO> atualizarConfig(@RequestBody ConfigDTO dto) {
         String tenantId = TenantContext.getCurrentTenant();
+        Configuracao config = configRepo.findById(tenantId).orElse(new Configuracao());
 
-        long totalAtual = servicoRepo.countByTenantIdAndAtivoTrue(tenantId);
-        if (totalAtual >= 10) {
-            return ResponseEntity.badRequest().body("Limite de 10 serviços customizados atingido.");
-        }
+        config.setTenantId(tenantId);
+        config.setValorM2ComInfra(dto.getValorM2ComInfra());
+        config.setValorM2SemInfra(dto.getValorM2SemInfra());
 
+        // Mapeamento manual: DTO -> Entity
+        config.setPrecoMotorPortao(dto.getPrecoMotor());
+        config.setPrecoCamera(dto.getPrecoCamera());
+        config.setPrecoCercaMetro(dto.getPrecoCerca());
+
+        config.setValorKmRodado(dto.getValorDiaria());
+        config.setValorPontoExtra(dto.getValorPontoExtra());
+        config.setAreaBase(dto.getAreaBase());
+        config.setPontosBase(dto.getPontosBase());
+
+        configRepo.save(config);
+
+        return ResponseEntity.ok(dto);
+    }
+
+    /**
+     * 3. ADICIONAR SERVIÇO EXTRA (Lustres, Pendentes, etc)
+     */
+    @PostMapping("/servicos-extras")
+    public ResponseEntity<ServicoCustomizado> adicionarServico(@RequestBody ServicoCustomizado servico) {
+        String tenantId = TenantContext.getCurrentTenant();
         servico.setTenantId(tenantId);
         servico.setAtivo(true);
         return ResponseEntity.ok(servicoRepo.save(servico));
     }
 
-    // 3. Busca a configuração atual (Para carregar no formulário do Admin)
-    @GetMapping("/config")
-    public ResponseEntity<Configuracao> getConfig() {
-        String tenantId = TenantContext.getCurrentTenant();
-        return ResponseEntity.ok(configRepo.findById(tenantId).orElse(new Configuracao()));
-    }
-
+    /**
+     * 4. LISTAR SERVIÇOS EXTRAS
+     */
     @GetMapping("/servicos-extras")
     public List<ServicoCustomizado> listarServicos() {
-        return servicoRepo.findByTenantIdAndAtivoTrue(TenantContext.getCurrentTenant());
+        String tenantId = TenantContext.getCurrentTenant();
+        return servicoRepo.findByTenantIdAndAtivoTrue(tenantId);
     }
 
+    /**
+     * 5. DELETAR (DESATIVAR) SERVIÇO EXTRA
+     */
     @DeleteMapping("/servicos-extras/{id}")
-    public ResponseEntity<?> deletarServico(@PathVariable Long id) {
+    public ResponseEntity<Void> deletarServico(@PathVariable Long id) {
         String tenantId = TenantContext.getCurrentTenant();
         servicoRepo.findById(id).ifPresent(s -> {
             if(s.getTenantId().equals(tenantId)) {
-                s.setAtivo(false); // Soft delete é melhor que delete físico
+                s.setAtivo(false); // Soft delete
                 servicoRepo.save(s);
             }
         });

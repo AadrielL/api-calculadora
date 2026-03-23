@@ -10,7 +10,13 @@ public class ServicoCustomizado {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String tenantId;
-    private String nome;     // Ex: "Câmera IP", "Motor Basculante"
-    private Double valor;    // Preço unitário da mão de obra
+    private String nome;
+    private Double valor;    // Este é o campo real do preço
     private Boolean ativo = true;
+
+    // Criamos este método para o Service não quebrar,
+    // ele simplesmente retorna o conteúdo de 'valor'
+    public Double getPrecoBase() {
+        return this.valor;
+    }
 }
