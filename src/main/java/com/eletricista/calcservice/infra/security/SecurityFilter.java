@@ -1,23 +1,25 @@
-package com.eletricista.calcservice.infra.security; // Ajuste o package conforme o projeto
+package com.eletricista.calcservice.infra.security;
 
 import com.eletricista.calcservice.infra.security.service.TokenService;
-import com.eletricista.calcservice.infra.security.tenant.TenantContext; //
+import com.eletricista.calcservice.infra.security.tenant.TenantContext;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority; // IMPORTANTE
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
+import java.util.Collections; // IMPORTANTE
 
 @Component
 public class SecurityFilter extends OncePerRequestFilter {
 
     @Autowired
-    private TokenService tokenService; //
+    private TokenService tokenService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -26,16 +28,28 @@ public class SecurityFilter extends OncePerRequestFilter {
         var token = this.recoverToken(request);
 
         if (token != null) {
-            var login = tokenService.validateToken(token); // Valida se o token é legítimo
+            var login = tokenService.validateToken(token);
 
-            if (!login.isEmpty()) {
-                var tenantId = tokenService.getTenantIdFromToken(token); // Extrai o Tenant do Token
+            if (login != null && !login.isEmpty()) {
+                String tenantId = tokenService.getTenantIdFromToken(token);
 
-                // Define o Tenant no Contexto (Substitui o antigo Interceptor)
-                TenantContext.setCurrentTenant(tenantId);
+                // Log para você conferir no console do Java se o Tenant está chegando
+                System.out.println("DEBUG: Login: " + login + " | Tenant: " + tenantId);
 
-                // Autentica o usuário no Spring Security
-                var authentication = new UsernamePasswordAuthenticationToken(login, null, null);
+                if (tenantId != null) {
+                    TenantContext.setCurrentTenant(tenantId);
+                }
+
+                // --- A CORREÇÃO ESTÁ AQUI ---
+                // Criamos uma autoridade padrão (ROLE_USER) para o Spring liberar o acesso
+                var authority = new SimpleGrantedAuthority("ROLE_USER");
+
+                var authentication = new UsernamePasswordAuthenticationToken(
+                        login,
+                        null,
+                        Collections.singletonList(authority) // Nunca passe null aqui!
+                );
+
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         }
@@ -43,7 +57,7 @@ public class SecurityFilter extends OncePerRequestFilter {
         try {
             filterChain.doFilter(request, response);
         } finally {
-            // Garante que o Tenant seja limpo após a resposta
+            // Limpa o TenantId da Thread atual
             TenantContext.clear();
         }
     }

@@ -28,8 +28,13 @@ public class AdminConfigController {
      * Converte a Entity (Banco) para DTO (Angular)
      */
     @GetMapping("/config")
-    public ResponseEntity<ConfigDTO> getConfig() {
+    public ResponseEntity<?> getConfig() {
         String tenantId = TenantContext.getCurrentTenant();
+
+        // Proteção contra Tenant nulo para não quebrar o findById
+        if (tenantId == null || tenantId.isEmpty()) {
+            return ResponseEntity.status(401).body("Tenant ID não identificado no Token.");
+        }
 
         Configuracao config = configRepo.findById(tenantId)
                 .orElse(new Configuracao()); // Retorna padrão se não existir no banco
@@ -57,8 +62,13 @@ public class AdminConfigController {
      * Converte o DTO (Angular) para Entity (Banco)
      */
     @PutMapping("/config")
-    public ResponseEntity<ConfigDTO> atualizarConfig(@RequestBody ConfigDTO dto) {
+    public ResponseEntity<?> atualizarConfig(@RequestBody ConfigDTO dto) {
         String tenantId = TenantContext.getCurrentTenant();
+
+        if (tenantId == null || tenantId.isEmpty()) {
+            return ResponseEntity.status(401).body("Tenant ID não identificado.");
+        }
+
         Configuracao config = configRepo.findById(tenantId).orElse(new Configuracao());
 
         config.setTenantId(tenantId);
@@ -84,8 +94,13 @@ public class AdminConfigController {
      * 3. ADICIONAR SERVIÇO EXTRA (Lustres, Pendentes, etc)
      */
     @PostMapping("/servicos-extras")
-    public ResponseEntity<ServicoCustomizado> adicionarServico(@RequestBody ServicoCustomizado servico) {
+    public ResponseEntity<?> adicionarServico(@RequestBody ServicoCustomizado servico) {
         String tenantId = TenantContext.getCurrentTenant();
+
+        if (tenantId == null) {
+            return ResponseEntity.status(401).build();
+        }
+
         servico.setTenantId(tenantId);
         servico.setAtivo(true);
         return ResponseEntity.ok(servicoRepo.save(servico));
@@ -97,6 +112,9 @@ public class AdminConfigController {
     @GetMapping("/servicos-extras")
     public List<ServicoCustomizado> listarServicos() {
         String tenantId = TenantContext.getCurrentTenant();
+        // Se o tenant for null, retorna lista vazia em vez de erro
+        if (tenantId == null) return List.of();
+
         return servicoRepo.findByTenantIdAndAtivoTrue(tenantId);
     }
 
@@ -106,12 +124,15 @@ public class AdminConfigController {
     @DeleteMapping("/servicos-extras/{id}")
     public ResponseEntity<Void> deletarServico(@PathVariable Long id) {
         String tenantId = TenantContext.getCurrentTenant();
-        servicoRepo.findById(id).ifPresent(s -> {
-            if(s.getTenantId().equals(tenantId)) {
-                s.setAtivo(false); // Soft delete
-                servicoRepo.save(s);
-            }
-        });
+
+        if (tenantId != null) {
+            servicoRepo.findById(id).ifPresent(s -> {
+                if(s.getTenantId().equals(tenantId)) {
+                    s.setAtivo(false); // Soft delete
+                    servicoRepo.save(s);
+                }
+            });
+        }
         return ResponseEntity.ok().build();
     }
 }

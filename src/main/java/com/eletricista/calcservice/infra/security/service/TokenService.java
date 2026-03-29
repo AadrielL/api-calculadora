@@ -19,18 +19,16 @@ public class TokenService {
                     .withIssuer("auth-api")
                     .build()
                     .verify(token)
-                    .getSubject(); // Retorna o login/email do usuário (Subject)
+                    .getSubject();
         } catch (JWTVerificationException exception) {
+            System.out.println("DEBUG: Erro ao validar Token: " + exception.getMessage());
             return "";
         }
     }
 
-    /**
-     * Extrai o tenantId (ID do profissional) de dentro do Payload do JWT.
-     * Vital para o funcionamento do Multitenancy.
-     */
     public String getTenantIdFromToken(String token) {
         try {
+            // Sincronizado com a Claim do Auth (tenantId)
             return JWT.decode(token).getClaim("tenantId").asString();
         } catch (Exception e) {
             return null;
