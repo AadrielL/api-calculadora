@@ -1,4 +1,4 @@
-package com.eletricista.calcservice.service;
+package com.eletricista.calcservice.config;
 
 import com.eletricista.calcservice.repository.OrcamentoRepository;
 import org.springframework.scheduling.annotation.Scheduled;
