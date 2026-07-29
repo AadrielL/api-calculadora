@@ -34,4 +34,12 @@ public class TokenService {
             return null;
         }
     }
+
+    public String getPlanTypeFromToken(String token) {
+        try {
+            return JWT.decode(token).getClaim("planType").asString();
+        } catch (Exception e) {
+            return "FREE";
+        }
+    }
 }

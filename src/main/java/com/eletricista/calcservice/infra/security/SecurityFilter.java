@@ -32,12 +32,16 @@ public class SecurityFilter extends OncePerRequestFilter {
 
             if (login != null && !login.isEmpty()) {
                 String tenantId = tokenService.getTenantIdFromToken(token);
+                String planType = tokenService.getPlanTypeFromToken(token);
 
                 // Log para você conferir no console do Java se o Tenant está chegando
-                System.out.println("DEBUG: Login: " + login + " | Tenant: " + tenantId);
+                System.out.println("DEBUG: Login: " + login + " | Tenant: " + tenantId + " | Plan: " + planType);
 
                 if (tenantId != null) {
                     TenantContext.setCurrentTenant(tenantId);
+                }
+                if (planType != null) {
+                    TenantContext.setCurrentPlanType(planType);
                 }
 
                 // --- A CORREÇÃO ESTÁ AQUI ---

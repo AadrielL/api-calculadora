@@ -26,6 +26,9 @@ public interface OrcamentoRepository extends JpaRepository<Orcamento, UUID> {
     @Query("SELECT o.status, COUNT(o) FROM Orcamento o WHERE o.tenantId = :tenantId AND o.excluido = false GROUP BY o.status")
     List<Object[]> countStatusByTenant(@Param("tenantId") String tenantId);
 
+    // Método para Rate Limit
+    long countByTenantIdAndDataCriacaoBetween(String tenantId, LocalDateTime start, LocalDateTime end);
+
     // CORREÇÃO AQUI: As anotações devem ficar no método de escrita
     @Modifying
     @Transactional

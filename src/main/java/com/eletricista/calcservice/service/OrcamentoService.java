@@ -24,6 +24,20 @@ public class OrcamentoService {
     @Transactional
     public OrcamentoResponse processarNovoOrcamento(QuizRequest quiz, String role) {
         String tenantId = TenantContext.getCurrentTenant();
+        String planType = TenantContext.getCurrentPlanType();
+        if (planType == null) planType = "FREE";
+
+        java.time.LocalDateTime startOfDay = java.time.LocalDate.now().atStartOfDay();
+        java.time.LocalDateTime endOfDay = java.time.LocalDate.now().atTime(23, 59, 59);
+        long budgetsToday = orcamentoRepo.countByTenantIdAndDataCriacaoBetween(tenantId, startOfDay, endOfDay);
+
+        if ("FREE".equals(planType) && budgetsToday >= 3) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.TOO_MANY_REQUESTS, "Limite diário de orçamentos (3) atingido para usuários gratuitos.");
+        } else if ("WEEKLY".equals(planType) && budgetsToday >= 50) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.TOO_MANY_REQUESTS, "Limite diário (50) atingido para o plano Semanal.");
+        } else if (("MONTHLY".equals(planType) || "LIFETIME".equals(planType)) && budgetsToday >= 100) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.TOO_MANY_REQUESTS, "Limite máximo diário (100) atingido.");
+        }
 
         // 1. Busca Configurações do banco (ou usa default se não existir)
         Configuracao conf = configRepo.findById(tenantId).orElse(new Configuracao());

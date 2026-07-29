@@ -27,6 +27,13 @@ public class DashboardController {
     @GetMapping("/stats")
     public DashboardDTO getStats() {
         String tenantId = TenantContext.getCurrentTenant();
+        String planType = TenantContext.getCurrentPlanType();
+
+        if ("FREE".equals(planType)) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.FORBIDDEN, "O Dashboard é exclusivo para assinantes."
+            );
+        }
 
         // Log para você ver no IntelliJ se o Tenant está chegando
         System.out.println("Buscando stats para o Tenant: " + tenantId);
