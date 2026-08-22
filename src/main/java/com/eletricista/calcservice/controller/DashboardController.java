@@ -28,30 +28,35 @@ public class DashboardController {
     public DashboardDTO getStats() {
         String tenantId = TenantContext.getCurrentTenant();
         String planType = TenantContext.getCurrentPlanType();
-
-        if ("FREE".equals(planType)) {
-            throw new org.springframework.web.server.ResponseStatusException(
-                org.springframework.http.HttpStatus.FORBIDDEN, "O Dashboard é exclusivo para assinantes."
-            );
+        if (planType == null || planType.isEmpty()) {
+            planType = "FREE";
         }
 
-        // Log para você ver no IntelliJ se o Tenant está chegando
-        System.out.println("Buscando stats para o Tenant: " + tenantId);
+        java.time.LocalDate today = java.time.LocalDate.now();
+        long budgetsToday = repository.countByTenantIdAndDataCriacao(tenantId, today);
+
+        int dailyLimit = 3;
+        if ("WEEKLY".equalsIgnoreCase(planType)) {
+            dailyLimit = 50;
+        } else if ("MONTHLY".equalsIgnoreCase(planType) || "LIFETIME".equalsIgnoreCase(planType)) {
+            dailyLimit = 100;
+        }
+
+        System.out.println("Buscando stats para o Tenant: " + tenantId + " | Plano: " + planType + " | Hoje: " + budgetsToday + "/" + dailyLimit);
 
         List<Object[]> results = repository.countStatusByTenant(tenantId);
         Map<String, Long> statsMap = new HashMap<>();
 
         for (Object[] result : results) {
-            statsMap.put(result[0].toString(), (Long) result[1]);
+            if (result[0] != null) {
+                statsMap.put(result[0].toString(), (Long) result[1]);
+            }
         }
 
-        // LINHA 40: Mude de countByTenantId para:
         long total = repository.countByTenantIdAndExcluidoFalse(tenantId);
-
-// LINHA 41: Mude de countByStatusAndTenantId para:
         long aceitos = repository.countByStatusAndTenantIdAndExcluidoFalse(StatusOrcamento.ACEITO, tenantId);
         double conversao = (total > 0) ? ((double) aceitos / total) * 100 : 0;
 
-        return new DashboardDTO(total, statsMap, conversao);
+        return new DashboardDTO(total, statsMap, conversao, budgetsToday, dailyLimit, planType);
     }
 }

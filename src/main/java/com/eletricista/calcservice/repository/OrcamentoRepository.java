@@ -27,7 +27,7 @@ public interface OrcamentoRepository extends JpaRepository<Orcamento, UUID> {
     List<Object[]> countStatusByTenant(@Param("tenantId") String tenantId);
 
     // Método para Rate Limit
-    long countByTenantIdAndDataCriacaoBetween(String tenantId, LocalDateTime start, LocalDateTime end);
+    long countByTenantIdAndDataCriacao(String tenantId, java.time.LocalDate dataCriacao);
 
     // CORREÇÃO AQUI: As anotações devem ficar no método de escrita
     @Modifying
