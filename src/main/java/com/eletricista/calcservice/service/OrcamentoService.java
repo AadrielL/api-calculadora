@@ -27,9 +27,8 @@ public class OrcamentoService {
         String planType = TenantContext.getCurrentPlanType();
         if (planType == null) planType = "FREE";
 
-        java.time.LocalDateTime startOfDay = java.time.LocalDate.now().atStartOfDay();
-        java.time.LocalDateTime endOfDay = java.time.LocalDate.now().atTime(23, 59, 59);
-        long budgetsToday = orcamentoRepo.countByTenantIdAndDataCriacaoBetween(tenantId, startOfDay, endOfDay);
+        java.time.LocalDate today = java.time.LocalDate.now();
+        long budgetsToday = orcamentoRepo.countByTenantIdAndDataCriacao(tenantId, today);
 
         if ("FREE".equals(planType) && budgetsToday >= 3) {
             throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.TOO_MANY_REQUESTS, "Limite diário de orçamentos (3) atingido para usuários gratuitos.");
