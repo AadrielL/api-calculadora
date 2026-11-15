@@ -31,4 +31,8 @@ public class Configuracao {
     private Double precoCercaMetro = 25.0;
     private Double fatorReforma = 1.3;
     private Double fatorAltoPadrao = 1.6;
+
+    // Configuração da Distribuidora por Tenant (M2-04: sem hardcode no front)
+    private String telefoneDistribuidora = "556333222120";
+    private String nomeDistribuidora = "Capital Elétrica - Palmas/TO";
 }
