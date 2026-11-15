@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -30,32 +31,36 @@ public class OrcamentoService {
         java.time.LocalDate today = java.time.LocalDate.now();
         long budgetsToday = orcamentoRepo.countByTenantIdAndDataCriacao(tenantId, today);
 
-        if ("FREE".equals(planType) && budgetsToday >= 3) {
-            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.TOO_MANY_REQUESTS, "Limite diário de orçamentos (3) atingido para usuários gratuitos.");
-        } else if ("WEEKLY".equals(planType) && budgetsToday >= 50) {
-            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.TOO_MANY_REQUESTS, "Limite diário (50) atingido para o plano Semanal.");
-        } else if (("MONTHLY".equals(planType) || "LIFETIME".equals(planType)) && budgetsToday >= 100) {
-            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.TOO_MANY_REQUESTS, "Limite máximo diário (100) atingido.");
+        // M2-05: Limite anti-abuso generoso de 15 orçamentos/dia no plano gratuito (FREE)
+        if ("FREE".equalsIgnoreCase(planType) && budgetsToday >= 15) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.TOO_MANY_REQUESTS,
+                    "Limite diário anti-abuso (15 orçamentos/dia) atingido para o plano gratuito."
+            );
+        } else if ("WEEKLY".equalsIgnoreCase(planType) && budgetsToday >= 50) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.TOO_MANY_REQUESTS,
+                    "Limite diário (50) atingido para o plano Semanal."
+            );
+        } else if (("MONTHLY".equalsIgnoreCase(planType) || "LIFETIME".equalsIgnoreCase(planType) || "PRO".equalsIgnoreCase(planType)) && budgetsToday >= 100) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.TOO_MANY_REQUESTS,
+                    "Limite máximo diário (100) atingido."
+            );
         }
 
-        // 1. Busca Configurações do banco (ou usa default se não existir)
         Configuracao conf = configRepo.findById(tenantId).orElse(new Configuracao());
-
-        // 2. Calcula Mão de Obra e Logística através do Service Especialista
         OrcamentoResponse calculoBase = precoService.calcularOrcamentoCompleto(quiz, conf);
 
-        // 3. Monta e Salva a Entidade Orcamento (O "Contrato" entre APIs)
         Orcamento orc = new Orcamento();
         orc.setClienteNome(quiz.nomeCliente());
         orc.setValorTotal(calculoBase.valorTotalMaoDeObra() + calculoBase.custoLogistica());
         orc.setTenantId(tenantId);
-        orc.setStatus(StatusOrcamento.PENDENTE_ADMIN); // Admin verá isso na outra API
-
+        orc.setStatus(StatusOrcamento.PENDENTE);
         orc.setDadosTecnicosSnapshot(converterParaJson(quiz));
 
         orc = orcamentoRepo.save(orc);
 
-        // 4. Definição de Mensagens de Resposta (Substituindo o antigo MaterialService)
         List<String> listaMensagem;
         String fasesInfo;
 
@@ -77,15 +82,39 @@ public class OrcamentoService {
         );
     }
 
-    /**
-     * Busca um orçamento garantindo que ele pertença ao Tenant logado.
-     */
     public Orcamento buscarOrcamentoSeguro(UUID id) {
         String tenantId = TenantContext.getCurrentTenant();
 
         return orcamentoRepo.findById(id)
                 .filter(o -> o.getTenantId().equalsIgnoreCase(tenantId))
                 .orElseThrow(() -> new RuntimeException("Orçamento não encontrado para o usuário: " + tenantId));
+    }
+
+    /**
+     * M2-02: Busca pública para visualização da proposta pelo cliente do eletricista
+     */
+    public Orcamento buscarOrcamentoPublico(UUID id) {
+        return orcamentoRepo.findById(id)
+                .filter(o -> !o.isExcluido())
+                .orElseThrow(() -> new RuntimeException("Proposta não encontrada ou indisponível."));
+    }
+
+    /**
+     * M2-02: Aceite ou Recusa digital do cliente com 1 clique e registro de data/hora no banco
+     */
+    @Transactional
+    public Orcamento registrarAceiteCliente(UUID id, boolean aceitar) {
+        Orcamento orc = orcamentoRepo.findById(id)
+                .filter(o -> !o.isExcluido())
+                .orElseThrow(() -> new RuntimeException("Proposta não encontrada."));
+
+        if (aceitar) {
+            orc.setStatus(StatusOrcamento.ACEITO);
+            orc.setDataAceite(LocalDateTime.now());
+        } else {
+            orc.setStatus(StatusOrcamento.RECUSADO);
+        }
+        return orcamentoRepo.save(orc);
     }
 
     private String converterParaJson(Object obj) {
