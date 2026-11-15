@@ -21,6 +21,9 @@ public class Orcamento {
     @Enumerated(EnumType.STRING)
     private StatusOrcamento status;
 
+    private LocalDateTime dataAceite;
+    private LocalDateTime dataEnvio;
+
     // Snapshot: Armazena o resultado do levantamento como JSON
     @Column(columnDefinition = "TEXT")
     private String dadosTecnicosSnapshot;
