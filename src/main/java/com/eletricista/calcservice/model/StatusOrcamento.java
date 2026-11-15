@@ -1,5 +1,5 @@
 package com.eletricista.calcservice.model;
 
 public enum StatusOrcamento {
-    PENDENTE_ADMIN, ACEITO, RECUSADO
+    PENDENTE, PENDENTE_ADMIN, ENVIADO, ACEITO, RECUSADO
 }
