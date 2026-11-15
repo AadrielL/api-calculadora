@@ -7,14 +7,12 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    // REMOVIDO: TenantInterceptor e addInterceptors
-
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOrigins("http://localhost:4200")
+                .allowedOriginPatterns("http://localhost:*", "http://127.0.0.1:*", "https://*.comandosamoris.tech", "https://comandosamoris.tech")
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
                 .allowedHeaders("*")
-                .exposedHeaders("X-Tenant-ID", "Authorization"); // Adicione Authorization aqui
+                .exposedHeaders("X-Tenant-ID", "Authorization");
     }
 }
