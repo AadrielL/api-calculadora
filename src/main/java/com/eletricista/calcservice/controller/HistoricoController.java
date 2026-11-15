@@ -11,7 +11,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/v1/historico")
-@CrossOrigin(origins = "http://localhost:4200")
+@CrossOrigin(originPatterns = "*", allowCredentials = "true", allowedHeaders = "*")
 public class HistoricoController {
 
     private final OrcamentoRepository repository;
@@ -20,14 +20,12 @@ public class HistoricoController {
         this.repository = repository;
     }
 
-    // Listar apenas o que NÃO está na lixeira
     @GetMapping
     public List<Orcamento> listarHistorico() {
         String tenantId = TenantContext.getCurrentTenant();
         return repository.findByTenantIdAndExcluidoFalseOrderByDataCriacaoDesc(tenantId);
     }
 
-    // Listar apenas o que ESTÁ na lixeira
     @GetMapping("/lixeira")
     public List<Orcamento> listarLixeira() {
         String tenantId = TenantContext.getCurrentTenant();
@@ -37,12 +35,17 @@ public class HistoricoController {
     @PatchMapping("/{id}/status")
     public void alterarStatus(@PathVariable UUID id, @RequestParam String novoStatus) {
         repository.findById(id).ifPresent(orc -> {
-            orc.setStatus(StatusOrcamento.valueOf(novoStatus.toUpperCase()));
+            StatusOrcamento statusEnum = StatusOrcamento.valueOf(novoStatus.toUpperCase());
+            orc.setStatus(statusEnum);
+            if (statusEnum == StatusOrcamento.ACEITO) {
+                orc.setDataAceite(LocalDateTime.now());
+            } else if (statusEnum == StatusOrcamento.ENVIADO) {
+                orc.setDataEnvio(LocalDateTime.now());
+            }
             repository.save(orc);
         });
     }
 
-    // RESOLVE O ERRO 404: Mapeia o DELETE para a Lixeira (Soft Delete)
     @DeleteMapping("/{id}")
     public void moverParaLixeira(@PathVariable UUID id) {
         repository.findById(id).ifPresent(orc -> {
