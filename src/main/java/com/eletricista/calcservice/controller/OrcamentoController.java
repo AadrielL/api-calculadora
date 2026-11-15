@@ -12,7 +12,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/v1/orcamentos")
-@CrossOrigin(origins = "http://localhost:4200")
+@CrossOrigin(originPatterns = "*", allowCredentials = "true", allowedHeaders = "*")
 public class OrcamentoController {
 
     @Autowired
@@ -30,5 +30,19 @@ public class OrcamentoController {
     public ResponseEntity<Orcamento> buscarPorId(@PathVariable UUID id) {
         Orcamento orc = orcamentoService.buscarOrcamentoSeguro(id);
         return ResponseEntity.ok(orc);
+    }
+
+    // M2-02: Visualização pública da proposta pelo cliente do eletricista
+    @GetMapping("/publico/{id}")
+    public ResponseEntity<Orcamento> buscarPublicoPorId(@PathVariable UUID id) {
+        return ResponseEntity.ok(orcamentoService.buscarOrcamentoPublico(id));
+    }
+
+    // M2-02: Aceite com 1 clique pelo cliente (grava status Aceito/Recusado + dataHora no banco)
+    @PostMapping("/publico/{id}/aceitar")
+    public ResponseEntity<Orcamento> aceitarOuRecusarPublico(
+            @PathVariable UUID id,
+            @RequestParam(defaultValue = "true") boolean aceitar) {
+        return ResponseEntity.ok(orcamentoService.registrarAceiteCliente(id, aceitar));
     }
 }
