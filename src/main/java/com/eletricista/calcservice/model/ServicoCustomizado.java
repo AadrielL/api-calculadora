@@ -11,11 +11,14 @@ public class ServicoCustomizado {
     private Long id;
     private String tenantId;
     private String nome;
-    private Double valor;    // Este é o campo real do preço
+    private String unidade = "UN";
+    private Double valor;    // Valor de mão de obra unitário
+
+    @Column(columnDefinition = "TEXT")
+    private String materiaisSugeridos; // Lista sugerida de materiais vinculados (M2-01)
+
     private Boolean ativo = true;
 
-    // Criamos este método para o Service não quebrar,
-    // ele simplesmente retorna o conteúdo de 'valor'
     public Double getPrecoBase() {
         return this.valor;
     }
